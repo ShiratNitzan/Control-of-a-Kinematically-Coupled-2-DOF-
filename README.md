@@ -30,4 +30,4 @@ The file **`Supplementary Material.pdf`** contains the dataset used in this rese
 2. **Setup:** Open MATLAB R2022b and navigate to the project root directory.
 3. **Run:** Execute the main function:
    ```matlab
-   main.m
+  MAIN.m
