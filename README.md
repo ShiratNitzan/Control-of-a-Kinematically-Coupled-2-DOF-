@@ -24,7 +24,7 @@ The file **`Supplementary Material.pdf`** contains the foundational dataset used
 **Written by:** Anat Shkedy Rabani, Sarai Mizrachi, Gregory S. Sawicki, Raziel Riemer (Ben-Gurion University of the Negev).
 
 ## Requirements
-* **MATLAB Version:** R2022b (Student Version)
+* **MATLAB Version:** R2022b 
 * **Toolboxes Required:**
     * Simulink
     * Simscape & Simscape Multibody
@@ -35,7 +35,7 @@ The file **`Supplementary Material.pdf`** contains the foundational dataset used
 2.  **Setup:** Open MATLAB R2022b and navigate to the project root directory.
 3.  **Run:** Execute the main function:
     ```matlab
-    main.m
+    MAIN.m
     ```
     *Note: Ensure all subfolders are added to the MATLAB path.*
 
