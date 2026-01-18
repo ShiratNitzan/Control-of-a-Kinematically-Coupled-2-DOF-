@@ -1,0 +1,178 @@
+%% %time for the simulation 
+
+time_sim = 10 ; %[sec]
+sample_time = 0.1;  %[sec]
+
+% Loads the data from the MAT file and processes it
+    
+temp = load("ALLDATAfinal0.mat");  % Load the MAT file
+temp = temp.ALLDATA;  % Extract the data from the loaded structure
+
+hip = temp(:,7);  % Adjust data values
+knee = temp(:,4);  % Adjust data values
+ankle = temp(:,1);  % Adjust data values
+
+time1 = 0:sample_time:time_sim-sample_time;  % Time vector from 0 to 10 seconds, with 0.1 second steps
+
+%% 
+
+% === Fit line segment by segment with equation in legend like requested ===
+
+n_segments = length(interval_start);
+slopes = zeros(n_segments,1);
+intercepts = zeros(n_segments,1);
+rmse_values = zeros(n_segments,1);
+
+figure; hold on;
+plot(time1, ankle_angle, 'k', 'LineWidth', 2, 'DisplayName', 'Actual Ankle Angle');
+
+colors = lines(n_segments);
+
+for i = 1:n_segments
+    t_start = interval_start(i);
+    t_end = interval_end(i);
+    
+    idx_range = find(time1 >= t_start & time1 < t_end);
+    
+    x = knee_angle(idx_range);
+    y = ankle_angle(idx_range);
+    
+    p = polyfit(x, y, 1);
+    m = p(1);
+    b = p(2);
+    
+    y_fit = m*x + b;
+    rmse = sqrt(mean((y - y_fit).^2));
+    
+    slopes(i) = m;
+    intercepts(i) = b;
+    rmse_values(i) = rmse;
+    
+    % Prepare equation and RMSE string for legend with requested format
+    eqn_str = sprintf('\\theta_{ankle}^ = %.3f \\times \\theta_{knee} + %.3f, RMSE=%.3f', m, b, rmse);
+    
+    plot(time1(idx_range), y_fit, 'Color', colors(i,:), 'LineWidth', 1.5, ...
+        'DisplayName', eqn_str);
+    
+    % Print to command window too
+    fprintf('Segment %d: θ̂_ankle = %.4f * θ_knee + %.4f, RMSE = %.4f\n', i, m, b, rmse);
+end
+
+for i = 1:length(knee_extrema_times)
+    xline(knee_extrema_times(i), '--b', 'HandleVisibility','off');
+end
+
+for i = 1:length(ankle_extrema_times)
+    xline(ankle_extrema_times(i), '--r', 'HandleVisibility','off');
+end
+
+xlabel('Time [s]');
+ylabel('Angle [deg]');
+title('Actual Ankle Angle and Fitted Lines per Segment with RMSE');
+legend('Location', 'best');
+grid on;
+
+% === Initialize estimated ankle angle vector ===
+estimated_ankle_angle1 = zeros(size(time1));  % Estimated ankle angle for all time points
+
+% === Fill estimated ankle angle segment by segment ===
+for i = 1:n_segments
+    % Segment start and end times
+    t_start = interval_start(i);
+    t_end = interval_end(i);
+    
+    % Find indices of points in current segment
+    idx_range = find(time1 >= t_start & time1 < t_end);
+    
+    % Extract knee angles for current segment
+    x = knee_angle(idx_range);
+    
+    % Use previously computed slope and intercept for this segment
+    m = slopes(i);
+    b = intercepts(i);
+    
+    % Calculate estimated ankle angle for the segment points
+    estimated_ankle_angle1(idx_range) = m * x + b;
+end
+
+estimated_ankle_angle1(end) = estimated_ankle_angle1(end-1);
+%% 
+% === Step 1: Find best global slope for all data ===
+% Combine all data into a single vector for fitting
+x_all = knee_angle(:);
+y_all = ankle_angle(:);
+
+% Fit linear model y = m*x + b and extract global slope
+p_global = polyfit(x_all, y_all, 1);
+best_slope = p_global(1);  % This slope will be fixed for all segments
+
+fprintf('Best global slope (fixed for all segments): m = %.4f\n', best_slope);
+
+% === Step 2: Fit intercept per segment with fixed slope ===
+intercepts = zeros(n_segments,1);
+rmse_values = zeros(n_segments,1);
+estimated_ankle_angle2 = zeros(size(time1));
+
+figure; hold on;
+plot(time1, ankle_angle, 'k', 'LineWidth', 2, 'DisplayName', 'Actual Ankle Angle');
+
+colors = lines(n_segments);
+
+for i = 1:n_segments
+    t_start = interval_start(i);
+    t_end = interval_end(i);
+    
+    idx_range = find(time1 >= t_start & time1 < t_end);
+    x = knee_angle(idx_range);
+    y = ankle_angle(idx_range);
+    
+    % Compute optimal intercept for fixed slope
+    b = mean(y - best_slope * x);
+    
+    % Calculate estimated values and RMSE
+    y_fit = best_slope * x + b;
+    rmse = sqrt(mean((y - y_fit).^2));
+    
+    intercepts(i) = b;
+    rmse_values(i) = rmse;
+    estimated_ankle_angle2(idx_range) = y_fit;
+    
+    % Prepare equation for legend
+    eqn_str = sprintf('\\theta_{ankle}^ = %.3f \\times \\theta_{knee} + %.3f, RMSE=%.3f', best_slope, b, rmse);
+    plot(time1(idx_range), y_fit, 'Color', colors(i,:), 'LineWidth', 1.5, ...
+        'DisplayName', eqn_str);
+    
+    % Print details
+    fprintf('Segment %d: θ̂_ankle = %.4f * θ_knee + %.4f, RMSE = %.4f\n', ...
+        i, best_slope, b, rmse);
+end
+
+% Add vertical lines
+for i = 1:length(knee_extrema_times)
+    xline(knee_extrema_times(i), '--b', 'HandleVisibility','off');
+end
+for i = 1:length(ankle_extrema_times)
+    xline(ankle_extrema_times(i), '--r', 'HandleVisibility','off');
+end
+
+xlabel('Time [s]');
+ylabel('Angle [deg]');
+title('Segment-wise Intercept Fit with Fixed Slope');
+legend('Location', 'best');
+grid on;
+
+% === Fix last point manually ===
+estimated_ankle_angle2(end) = estimated_ankle_angle2(end-1);
+
+%% 
+
+% === Plot original ankle angle and estimated angles ===
+figure; hold on;
+plot(time1, ankle, 'k', 'LineWidth', 2, 'DisplayName', 'Actual Ankle Angle');
+plot(time1, estimated_ankle_angle1, 'r--', 'LineWidth', 1.5, 'DisplayName', 'Variable Slope');
+plot(time1, estimated_ankle_angle2, 'b--', 'LineWidth', 1.5, 'DisplayName', 'Fixed Slope = 0.226');
+xlabel('Time [s]');
+ylabel('Angle [deg]');
+title('Actual vs Estimated Ankle Angle: Variable vs Fixed Slope');
+legend('Location', 'best');
+grid on;
